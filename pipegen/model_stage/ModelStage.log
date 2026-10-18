@@ -1,0 +1,23 @@
+# PipeGen model stage — dhyeyghoda03/2693c909-8170-4845-b5fa-4b865af2c007
+# UTC                   step             outcome  fact
+2026-10-17T15:51:56Z  visualize        start    Checking every node against the TensorRT parser…
+2026-10-17T15:52:19Z  visualize        ok       321 nodes · 0 unresolved
+2026-10-17T16:07:57Z  compile          start    Compiling the model with TensorRT at FP16…
+2026-10-17T16:08:24Z  visualize        ok       321 nodes · 0 unresolved
+2026-10-17T16:09:15Z  choice           user     selected_artifact=baseline
+2026-10-17T16:09:15Z  choice           user     optimization_decision=
+2026-10-17T16:09:15Z  compile          warning  fp16 · 242 TRT layers · 28.6 MB
+2026-10-17T16:49:02Z  benchmark        start    Benchmarking the compiled engine on this device…
+2026-10-17T16:49:10Z  engine           ok       6.373 ms mean
+2026-10-17T16:55:53Z  accuracy         start    Scoring the engine against this task's labelled test folder — downloading it if this is the first run…
+2026-10-17T16:56:01Z  accuracy         ok       source=dataset · 30 samples · mAP50=0.4778
+2026-10-17T17:00:38Z  quantize_prepare start    Resolving this model's calibration path from PipelineIR…
+2026-10-17T17:00:40Z  choice           user     optimization_decision=preparing
+2026-10-17T18:51:07Z  reason           start    Working out what you asked for
+2026-10-17T18:51:09Z  reason           run      quantize
+2026-10-17T18:51:09Z  quantize         start    Generating one MinMax S8S8 QDQ candidate…
+2026-10-17T18:52:24Z  choice           user     selected_artifact=baseline
+2026-10-17T18:52:24Z  choice           user     optimization_decision=candidate_ready
+2026-10-17T18:52:24Z  quantize         warning  method=minmax · candidate valid
+2026-10-18T08:45:12Z  choice           user     selected_artifact=baseline
+2026-10-18T08:45:12Z  choice           user     optimization_decision=kept

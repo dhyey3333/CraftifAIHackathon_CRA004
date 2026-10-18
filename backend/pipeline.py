@@ -17,6 +17,7 @@ from backend.analytics.weapon_filter import WeaponTemporalFilter, _near
 from backend.analytics.weapon_verify import suppression_reason
 from backend.detection.object_detector import ObjectDetector
 from backend.detection.weapon_detector import WeaponDetection, WeaponDetector
+from backend.privacy import mask_heads
 from backend.tracking import TrackManager
 from backend.zones import Zone, ZoneStore
 
@@ -113,8 +114,20 @@ class FramePipeline:
         display_weapons = self._smooth_weapon_display(weapon_detections, confirmed_classes, timestamp)
 
         annotated = frame.copy()
+        if config.PRIVACY_MASK_HEADS:
+            # Before any drawing: what the dashboard streams and what evidence
+            # files store never shows a head. The raw `frame` (analysis only)
+            # is untouched. last_tracks also holds low-confidence people, e.g.
+            # someone lying on the floor, who must be covered too.
+            everyone = self.last_tracks.values()
+            mask_heads(
+                annotated,
+                [t.bbox for t in everyone if t.cls_name == config.PERSON_CLASS],
+                faces=[t.bbox for t in everyone if t.cls_name == "face"],
+            )
         self._draw_zones(annotated, zones)
-        self._draw_tracks(annotated, tracks)
+        if config.DETECTOR_BACKEND != "pipegen":   # PipeGen's RTSP frames already carry its boxes and IDs
+            self._draw_tracks(annotated, tracks)
         self._draw_weapons(annotated, display_weapons)
         self._update_object_counts(tracks, alert_eligible)
 

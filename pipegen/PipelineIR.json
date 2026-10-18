@@ -1,0 +1,718 @@
+{
+  "loop": {
+    "next_file": null,
+    "next_task": null,
+    "projectTree": {},
+    "target_function": {
+      "name": "read_file",
+      "parameters": {}
+    },
+    "visited_steps": [
+      "/home/dhyey/.pipegen/dhyeyghoda03/2693c909-8170-4845-b5fa-4b865af2c007/scene_steps/privacy_blur_bafb9b7122.py",
+      "/home/dhyey/.pipegen/dhyeyghoda03/2693c909-8170-4845-b5fa-4b865af2c007/src1/AbandonedObjectDetection/application.py",
+      "/home/dhyey/.pipegen/dhyeyghoda03/2693c909-8170-4845-b5fa-4b865af2c007/src1/AbandonedObjectDetection/model/yolo11s.onnx"
+    ]
+  },
+  "pipeline_ir": {
+    "connections": [
+      [
+        "p01of",
+        "p02if"
+      ],
+      [
+        "p02ob",
+        "p03ib"
+      ],
+      [
+        "p03or",
+        "p04ir"
+      ],
+      [
+        "p02om",
+        "p04im"
+      ],
+      [
+        "p04od",
+        "p05id"
+      ],
+      [
+        "p01of",
+        "p06if"
+      ],
+      [
+        "p04od",
+        "p06id"
+      ],
+      [
+        "p05ot",
+        "p06it"
+      ],
+      [
+        "p06of",
+        "p07if"
+      ],
+      [
+        "p04od",
+        "p07id"
+      ],
+      [
+        "p05ot",
+        "p08it"
+      ],
+      [
+        "p01om",
+        "p08im"
+      ],
+      [
+        "p07of",
+        "p09if"
+      ],
+      [
+        "p05ot",
+        "p09it"
+      ]
+    ],
+    "nodes": [
+      {
+        "description": "Read every video frame and emit source metadata.",
+        "id": 1,
+        "name": "file",
+        "ports": [
+          {
+            "direction": "output",
+            "format": {
+              "color": "BGR",
+              "encoding": "raw"
+            },
+            "framerate": {
+              "denominator": 1,
+              "numerator": 10
+            },
+            "id": "p01of",
+            "tensor": {
+              "dtype": "uint8",
+              "shape": [
+                576,
+                768,
+                3
+              ]
+            }
+          },
+          {
+            "direction": "output",
+            "format": {
+              "color": null,
+              "encoding": null
+            },
+            "framerate": {
+              "denominator": 1,
+              "numerator": 10
+            },
+            "id": "p01om",
+            "tensor": {
+              "dtype": null,
+              "shape": null
+            }
+          }
+        ],
+        "pseudo_code": "import cv2\ncap = cv2.VideoCapture('/home/dhyey/videos/vtest_h264.mp4')\nif not cap.isOpened():\n    raise FileNotFoundError('/home/dhyey/videos/vtest_h264.mp4')\nfps = cap.get(cv2.CAP_PROP_FPS) or 10.0\nframe_index = 0\nwhile True:\n    ok, frame = cap.read()\n    if not ok:\n        break\n    height, width = frame.shape[:2]\n    position_ms = cap.get(cv2.CAP_PROP_POS_MSEC)\n    timestamp_s = position_ms / 1000.0 if position_ms > 0 else frame_index / fps\n    metadata = {'frame_index': frame_index, 'timestamp_s': timestamp_s, 'width': width, 'height': height, 'fps': fps}\n    emit(p01of=frame, p01om=metadata)\n    frame_index += 1\ncap.release()",
+        "resolution": [
+          768,
+          576
+        ],
+        "type": "input",
+        "url": "file:///home/dhyey/videos/vtest_h264.mp4"
+      },
+      {
+        "color_order": "RGB",
+        "description": "Letterbox BGR frames and produce normalized RGB tensors.",
+        "id": 2,
+        "mean": null,
+        "normalization": 0.00392156862745098,
+        "offset": null,
+        "pad_value": 114,
+        "ports": [
+          {
+            "direction": "input",
+            "format": {
+              "color": "BGR",
+              "encoding": "raw"
+            },
+            "framerate": {
+              "denominator": 1,
+              "numerator": 10
+            },
+            "id": "p02if",
+            "tensor": {
+              "dtype": "uint8",
+              "shape": [
+                576,
+                768,
+                3
+              ]
+            }
+          },
+          {
+            "direction": "output",
+            "format": {
+              "color": "RGB",
+              "encoding": "raw"
+            },
+            "framerate": {
+              "denominator": 1,
+              "numerator": 10
+            },
+            "id": "p02ob",
+            "tensor": {
+              "dtype": "fp32",
+              "shape": [
+                1,
+                3,
+                640,
+                640
+              ]
+            }
+          },
+          {
+            "direction": "output",
+            "format": {
+              "color": null,
+              "encoding": null
+            },
+            "framerate": {
+              "denominator": 1,
+              "numerator": 10
+            },
+            "id": "p02om",
+            "tensor": {
+              "dtype": null,
+              "shape": null
+            }
+          }
+        ],
+        "pseudo_code": "import cv2\nimport numpy as np\norig_h, orig_w = frame.shape[:2]\ninput_h, input_w = 640, 640\nratio = min(input_h / orig_h, input_w / orig_w)\nnew_w, new_h = round(orig_w * ratio), round(orig_h * ratio)\nresized = cv2.resize(frame, (new_w, new_h), interpolation=cv2.INTER_LINEAR)\ncanvas = np.full((input_h, input_w, 3), 114, dtype=np.uint8)\npad_x, pad_y = (input_w - new_w) // 2, (input_h - new_h) // 2\ncanvas[pad_y:pad_y + new_h, pad_x:pad_x + new_w] = resized\nblob = cv2.cvtColor(canvas, cv2.COLOR_BGR2RGB).astype(np.float32) / 255.0\nblob = np.ascontiguousarray(np.transpose(blob, (2, 0, 1))[None])\ntransform = {'ratio': ratio, 'pad_x': pad_x, 'pad_y': pad_y, 'orig_w': orig_w, 'orig_h': orig_h}\nreturn blob, transform",
+        "resize": [
+          640,
+          640
+        ],
+        "resize_mode": "letterbox",
+        "scale": 0.00392156862745098,
+        "std": null,
+        "type": "preprocess"
+      },
+      {
+        "batchSize": 1,
+        "description": "Run YOLO11s once on each normalized frame.",
+        "id": 3,
+        "layout": "NCHW",
+        "model": {
+          "inputs": [
+            {
+              "dtype": "fp32",
+              "name": "images",
+              "shape": [
+                1,
+                3,
+                640,
+                640
+              ]
+            }
+          ],
+          "name": "YOLO11s COCO detector",
+          "outputs": [
+            {
+              "dtype": "fp32",
+              "name": "output0",
+              "shape": [
+                1,
+                84,
+                8400
+              ]
+            }
+          ],
+          "parameter_count": 9485791,
+          "type": "engine",
+          "url": "/home/dhyey/.pipegen/dhyeyghoda03/2693c909-8170-4845-b5fa-4b865af2c007/model_stage/yolo11s.fp16.plan",
+          "source_onnx": "/home/dhyey/.pipegen/dhyeyghoda03/2693c909-8170-4845-b5fa-4b865af2c007/src1/AbandonedObjectDetection/model/yolo11s.onnx"
+        },
+        "ports": [
+          {
+            "direction": "input",
+            "format": {
+              "color": "RGB",
+              "encoding": "raw"
+            },
+            "framerate": {
+              "denominator": 1,
+              "numerator": 10
+            },
+            "id": "p03ib",
+            "tensor": {
+              "dtype": "fp32",
+              "shape": [
+                1,
+                3,
+                640,
+                640
+              ]
+            }
+          },
+          {
+            "direction": "output",
+            "format": {
+              "color": null,
+              "encoding": null
+            },
+            "framerate": {
+              "denominator": 1,
+              "numerator": 10
+            },
+            "id": "p03or",
+            "tensor": {
+              "dtype": "fp32",
+              "shape": [
+                1,
+                84,
+                8400
+              ]
+            }
+          }
+        ],
+        "pseudo_code": "import onnxruntime as ort\nmodel_path = '/home/dhyey/.pipegen/dhyeyghoda03/2693c909-8170-4845-b5fa-4b865af2c007/src1/AbandonedObjectDetection/model/yolo11s.onnx'\nif 'session' not in state:\n    state['session'] = ort.InferenceSession(model_path, providers=ort.get_available_providers())\nsession = state['session']\ninput_name = session.get_inputs()[0].name\noutput_names = [output.name for output in session.get_outputs()]\nraw_output = session.run(output_names, {input_name: blob})[0]\nreturn raw_output",
+        "type": "inference"
+      },
+      {
+        "description": "Decode and filter requested detections in source pixels.",
+        "id": 4,
+        "label_file_path": null,
+        "num_classes": 80,
+        "ports": [
+          {
+            "direction": "input",
+            "format": {
+              "color": null,
+              "encoding": null
+            },
+            "framerate": {
+              "denominator": 1,
+              "numerator": 10
+            },
+            "id": "p04ir",
+            "tensor": {
+              "dtype": "fp32",
+              "shape": [
+                1,
+                84,
+                8400
+              ]
+            }
+          },
+          {
+            "direction": "input",
+            "format": {
+              "color": null,
+              "encoding": null
+            },
+            "framerate": {
+              "denominator": 1,
+              "numerator": 10
+            },
+            "id": "p04im",
+            "tensor": {
+              "dtype": null,
+              "shape": null
+            }
+          },
+          {
+            "direction": "output",
+            "format": {
+              "color": null,
+              "encoding": null
+            },
+            "framerate": {
+              "denominator": 1,
+              "numerator": 10
+            },
+            "id": "p04od",
+            "tensor": {
+              "dtype": null,
+              "shape": null
+            }
+          }
+        ],
+        "pseudo_code": "import cv2\nimport numpy as np\n# raw_output is [1, 84, 8400]: four center-xywh values followed by 80 COCO class scores.\nclass_names = {0: 'person', 24: 'backpack', 26: 'handbag', 28: 'suitcase'}\nconfidence_threshold, nms_threshold = 0.35, 0.45\npreds = np.squeeze(raw_output, 0).T\nboxes_xywh, scores = preds[:, :4], preds[:, 4:]\nclass_ids = np.argmax(scores, axis=1)\nconfidences = scores[np.arange(scores.shape[0]), class_ids]\nkeep = confidences >= confidence_threshold\nboxes_xywh, confidences, class_ids = boxes_xywh[keep], confidences[keep], class_ids[keep]\ndets = []\nif len(boxes_xywh):\n    cx, cy, w, h = boxes_xywh.T\n    ratio, pad_x, pad_y = transform['ratio'], transform['pad_x'], transform['pad_y']\n    orig_w, orig_h = transform['orig_w'], transform['orig_h']\n    x1 = np.clip((cx - w / 2 - pad_x) / ratio, 0, orig_w)\n    y1 = np.clip((cy - h / 2 - pad_y) / ratio, 0, orig_h)\n    x2 = np.clip((cx + w / 2 - pad_x) / ratio, 0, orig_w)\n    y2 = np.clip((cy + h / 2 - pad_y) / ratio, 0, orig_h)\n    for c in np.unique(class_ids):\n        idxs = np.where(class_ids == c)[0]\n        rects = np.stack([x1[idxs], y1[idxs], (x2 - x1)[idxs], (y2 - y1)[idxs]], axis=1)\n        kept = cv2.dnn.NMSBoxes(rects.tolist(), confidences[idxs].tolist(), confidence_threshold, nms_threshold)\n        kept = np.array(kept).flatten() if len(kept) else []\n        if int(c) not in class_names:\n            continue\n        for i in kept:\n            oi = idxs[i]\n            dets.append({'box': [float(x1[oi]), float(y1[oi]), float(x2[oi]), float(y2[oi])], 'score': float(confidences[oi]), 'class': class_names[int(c)]})\nreturn dets",
+        "task": "detection",
+        "threshold": 0.35,
+        "top_items": null,
+        "type": "postprocess"
+      },
+      {
+        "category": "tracking",
+        "description": "Assign persistent IDs using Hungarian IoU detection matching.",
+        "external_assets": [],
+        "id": 5,
+        "inputs": [
+          "bbox"
+        ],
+        "name": "multi-object tracking",
+        "outputs": [
+          "bbox"
+        ],
+        "parameters": {
+          "iou_threshold": 0.3,
+          "max_age": 15
+        },
+        "placement": {
+          "attach_point": null,
+          "position": "post_nn"
+        },
+        "ports": [
+          {
+            "direction": "input",
+            "format": {
+              "color": null,
+              "encoding": null
+            },
+            "framerate": {
+              "denominator": 1,
+              "numerator": 10
+            },
+            "id": "p05id",
+            "tensor": {
+              "dtype": null,
+              "shape": null
+            }
+          },
+          {
+            "direction": "output",
+            "format": {
+              "color": null,
+              "encoding": null
+            },
+            "framerate": {
+              "denominator": 1,
+              "numerator": 10
+            },
+            "id": "p05ot",
+            "tensor": {
+              "dtype": null,
+              "shape": null
+            }
+          }
+        ],
+        "pseudo_code": "import numpy as np\nfrom scipy.optimize import linear_sum_assignment\n\ndef iou(box_a, box_b):\n    ax1, ay1, ax2, ay2 = box_a\n    bx1, by1, bx2, by2 = box_b\n    ix1, iy1 = max(ax1, bx1), max(ay1, by1)\n    ix2, iy2 = min(ax2, bx2), min(ay2, by2)\n    inter = max(0, ix2 - ix1) * max(0, iy2 - iy1)\n    area_a = max(0, ax2 - ax1) * max(0, ay2 - ay1)\n    area_b = max(0, bx2 - bx1) * max(0, by2 - by1)\n    union = area_a + area_b - inter\n    return inter / union if union > 0 else 0.0\n\ndef center(box):\n    x1, y1, x2, y2 = box\n    return ((x1 + x2) / 2, (y1 + y2) / 2)\n\ntracks = state.setdefault('tracks', [])\nstate.setdefault('next_id', 1)\niou_threshold, max_age = parameters['iou_threshold'], parameters['max_age']\nif not tracks:\n    for det in detections:\n        tracks.append({'id': state['next_id'], 'box': det['box'], 'class': det['class'], 'score': det['score'], 'misses': 0, 'hits': 1, 'centers': [center(det['box'])]})\n        state['next_id'] += 1\nelse:\n    if detections:\n        cost = np.zeros((len(tracks), len(detections)))\n        for i, trk in enumerate(tracks):\n            for j, det in enumerate(detections):\n                cost[i, j] = 1 - iou(trk['box'], det['box'])\n        row_idx, col_idx = linear_sum_assignment(cost)\n    else:\n        row_idx, col_idx = np.array([], dtype=int), np.array([], dtype=int)\n    matched_tracks, matched_dets = set(), set()\n    for r, c in zip(row_idx, col_idx):\n        if 1 - cost[r, c] >= iou_threshold:\n            trk, det = tracks[r], detections[c]\n            trk['box'], trk['class'], trk['score'] = det['box'], det['class'], det['score']\n            trk['hits'] += 1\n            trk['misses'] = 0\n            trk['centers'].append(center(trk['box']))\n            trk['centers'] = trk['centers'][-30:]\n            matched_tracks.add(r)\n            matched_dets.add(c)\n    for i, trk in enumerate(tracks):\n        if i not in matched_tracks:\n            trk['misses'] += 1\n    for j, det in enumerate(detections):\n        if j not in matched_dets:\n            tracks.append({'id': state['next_id'], 'box': det['box'], 'class': det['class'], 'score': det['score'], 'misses': 0, 'hits': 1, 'centers': [center(det['box'])]})\n            state['next_id'] += 1\n    tracks = [trk for trk in tracks if trk['misses'] <= max_age]\nstate['tracks'] = tracks\n# Missed tracks remain available for association, but are not current-frame objects.\ncurrent_tracks = [{'id': trk['id'], 'class': trk['class'], 'score': trk['score'], 'box': trk['box']} for trk in tracks if trk['misses'] == 0]\nreturn current_tracks",
+        "reference_path": null,
+        "runs_every_frame": true,
+        "state_key": "global",
+        "triggers": [],
+        "type": "custom"
+      },
+      {
+        "category": "post_nn_mask_ops",
+        "description": "Cover detected person head regions with solid boxes.",
+        "external_assets": [],
+        "id": 6,
+        "inputs": [
+          "image",
+          "bbox",
+          "bbox"
+        ],
+        "name": "Head-region solid-box redaction",
+        "outputs": [
+          "image"
+        ],
+        "parameters": {
+          "color_bgr": [
+            0,
+            0,
+            0
+          ],
+          "head_grow": 0.2,
+          "head_share": 0.2
+        },
+        "placement": {
+          "attach_point": null,
+          "position": "post_tracker"
+        },
+        "ports": [
+          {
+            "direction": "input",
+            "format": {
+              "color": "BGR",
+              "encoding": "raw"
+            },
+            "framerate": {
+              "denominator": 1,
+              "numerator": 10
+            },
+            "id": "p06if",
+            "tensor": {
+              "dtype": "uint8",
+              "shape": [
+                576,
+                768,
+                3
+              ]
+            }
+          },
+          {
+            "direction": "input",
+            "format": {
+              "color": null,
+              "encoding": null
+            },
+            "framerate": {
+              "denominator": 1,
+              "numerator": 10
+            },
+            "id": "p06id",
+            "tensor": {
+              "dtype": null,
+              "shape": null
+            }
+          },
+          {
+            "direction": "input",
+            "format": {
+              "color": null,
+              "encoding": null
+            },
+            "framerate": {
+              "denominator": 1,
+              "numerator": 10
+            },
+            "id": "p06it",
+            "tensor": {
+              "dtype": null,
+              "shape": null
+            }
+          },
+          {
+            "direction": "output",
+            "format": {
+              "color": "BGR",
+              "encoding": "raw"
+            },
+            "framerate": {
+              "denominator": 1,
+              "numerator": 10
+            },
+            "id": "p06of",
+            "tensor": {
+              "dtype": "uint8",
+              "shape": [
+                576,
+                768,
+                3
+              ]
+            }
+          }
+        ],
+        "pseudo_code": "import cv2\nimport math\n# The current_tracks input orders this picture-path operation after tracking;\n# person regions come from this frame's decoded detections, not retained tracks.\nout = frame.copy()\nheight, width = out.shape[:2]\nfor det in detections:\n    if det['class'] != 'person':\n        continue\n    x1, y1, x2, y2 = det['box']\n    box_w, box_h = x2 - x1, y2 - y1\n    head_h = box_h * parameters['head_share']\n    grow = parameters['head_grow']\n    left = max(0, math.floor(x1 - box_w * grow / 2))\n    top = max(0, math.floor(y1 - head_h * grow / 2))\n    right = min(width, math.ceil(x1 + box_w * (1 + grow / 2)))\n    bottom = min(height, math.ceil(y1 + head_h * (1 + grow / 2)))\n    if right > left and bottom > top:\n        cv2.rectangle(out, (left, top), (right - 1, bottom - 1), tuple(parameters['color_bgr']), thickness=-1)\nreturn out",
+        "reference_path": null,
+        "runs_every_frame": true,
+        "state_key": "none",
+        "triggers": [],
+        "type": "custom"
+      },
+      {
+        "category": "other",
+        "description": "Pixelate expanded detected head regions before video streaming.",
+        "external_assets": [],
+        "id": 7,
+        "inputs": [
+          "image",
+          "bbox"
+        ],
+        "name": "Head blur",
+        "outputs": [
+          "image"
+        ],
+        "parameters": {
+          "ops": [
+            {
+              "cell": 16,
+              "classes": [
+                "person"
+              ],
+              "mode": "pixelate",
+              "op": "pixelate_boxes",
+              "region": "head",
+              "source": "object detection@input1"
+            }
+          ]
+        },
+        "placement": {
+          "attach_point": null,
+          "position": "post_tracker"
+        },
+        "ports": [
+          {
+            "direction": "input",
+            "format": {
+              "color": "BGR",
+              "encoding": "raw"
+            },
+            "framerate": {
+              "denominator": 1,
+              "numerator": 10
+            },
+            "id": "p07if",
+            "tensor": {
+              "dtype": "uint8",
+              "shape": [
+                576,
+                768,
+                3
+              ]
+            }
+          },
+          {
+            "direction": "input",
+            "format": {
+              "color": null,
+              "encoding": null
+            },
+            "framerate": {
+              "denominator": 1,
+              "numerator": 10
+            },
+            "id": "p07id",
+            "tensor": {
+              "dtype": null,
+              "shape": null
+            }
+          },
+          {
+            "direction": "output",
+            "format": {
+              "color": "BGR",
+              "encoding": "raw"
+            },
+            "framerate": {
+              "denominator": 1,
+              "numerator": 10
+            },
+            "id": "p07of",
+            "tensor": {
+              "dtype": "uint8",
+              "shape": [
+                576,
+                768,
+                3
+              ]
+            }
+          }
+        ],
+        "pseudo_code": "import cv2\nimport numpy as np\nHEAD_SHARE, HEAD_GROW = 0.20, 0.20\nOPS = ('pixelate_boxes',)\n\ndef wanted(box, op):\n    classes = [str(c).lower() for c in op.get('classes') or []]\n    label = str(box.get('label') or '').lower()\n    if classes and not any(c == label or c in label for c in classes):\n        return False\n    return not (op.get('source') and box.get('source') and box['source'] != op['source'])\n\ndef region(box, kind, width, height):\n    x, y, w, h = (float(box[k]) for k in ('left', 'top', 'width', 'height'))\n    if kind == 'head':\n        h = h * HEAD_SHARE\n        x, y, w, h = x - w * HEAD_GROW / 2, y - h * HEAD_GROW / 2, w * (1 + HEAD_GROW), h * (1 + HEAD_GROW)\n    x0, y0 = max(0, int(np.floor(x / 2)) * 2), max(0, int(np.floor(y / 2)) * 2)\n    x1, y1 = min(width, int(np.ceil((x + w) / 2)) * 2), min(height, int(np.ceil((y + h) / 2)) * 2)\n    return (x0, y0, x1, y1) if x1 - x0 >= 2 and y1 - y0 >= 2 else None\n\ndef hide(plane, x0, y0, x1, y1, mode, cell):\n    block = plane[y0:y1, x0:x1]\n    h, w = block.shape[:2]\n    if mode == 'blur':\n        k = max(3, (min(w, h) // 3) | 1)\n        block[...] = cv2.blur(np.ascontiguousarray(block), (k, k))\n        return\n    small = cv2.resize(np.ascontiguousarray(block), (max(1, w // cell), max(1, h // cell)), interpolation=cv2.INTER_AREA)\n    block[...] = cv2.resize(small, (w, h), interpolation=cv2.INTER_NEAREST).reshape(block.shape)\n\ndef process(y, uv, boxes, params):\n    height, width = y.shape[:2]\n    hidden = 0\n    for op in params.get('ops') or []:\n        if op.get('op') not in OPS:\n            raise ValueError(f\"unknown op {op.get('op')!r}\")\n        kind = op.get('region') or 'person'\n        mode = op.get('mode') or 'pixelate'\n        cell = max(2, int(op.get('cell') or 16))\n        for box in boxes or []:\n            if not wanted(box, op):\n                continue\n            area = region(box, kind, width, height)\n            if area is None:\n                continue\n            x0, y0, x1, y1 = area\n            hide(y, x0, y0, x1, y1, mode, cell)\n            hide(uv, x0 // 2, y0 // 2, x1 // 2, y1 // 2, mode, max(1, cell // 2))\n            hidden += 1\n    return hidden\n\n# Adapt the reference's in-place NV12 planes to this branch's BGR image port.\nheight, width = frame.shape[:2]\nif height % 2 or width % 2:\n    raise ValueError('NV12 privacy processing requires even frame dimensions')\ni420 = cv2.cvtColor(frame, cv2.COLOR_BGR2YUV_I420).reshape(-1)\ny_size, chroma_size = height * width, height * width // 4\ny = i420[:y_size].copy().reshape(height, width)\nu = i420[y_size:y_size + chroma_size].reshape(height // 2, width // 2)\nv = i420[y_size + chroma_size:y_size + 2 * chroma_size].reshape(height // 2, width // 2)\nuv = np.stack((u, v), axis=-1)\nboxes = []\nfor det in detections:\n    x1, y1, x2, y2 = det['box']\n    boxes.append({'left': x1, 'top': y1, 'width': x2 - x1, 'height': y2 - y1, 'label': det['class'], 'source': 'object detection@input1'})\nhidden = process(y, uv, boxes, parameters)\nnv12 = np.concatenate((y.reshape(-1), uv.reshape(-1))).reshape(height * 3 // 2, width)\nredacted_bgr = cv2.cvtColor(nv12, cv2.COLOR_YUV2BGR_NV12)\nreturn redacted_bgr",
+        "reference_path": "/home/dhyey/.pipegen/dhyeyghoda03/2693c909-8170-4845-b5fa-4b865af2c007/scene_steps/privacy_blur_bafb9b7122.py",
+        "runs_every_frame": true,
+        "state_key": "none",
+        "triggers": [],
+        "type": "custom"
+      },
+      {
+        "description": "Publish current tracked objects as per-frame MQTT JSON.",
+        "grid": null,
+        "id": 8,
+        "mqtt": {
+          "interval": 1,
+          "payload": "frame",
+          "skip_empty": false
+        },
+        "name": "mqtt",
+        "output_type": "single",
+        "ports": [
+          {
+            "direction": "input",
+            "format": {
+              "color": null,
+              "encoding": null
+            },
+            "framerate": {
+              "denominator": 1,
+              "numerator": 10
+            },
+            "id": "p08it",
+            "tensor": {
+              "dtype": null,
+              "shape": null
+            }
+          },
+          {
+            "direction": "input",
+            "format": {
+              "color": null,
+              "encoding": null
+            },
+            "framerate": {
+              "denominator": 1,
+              "numerator": 10
+            },
+            "id": "p08im",
+            "tensor": {
+              "dtype": null,
+              "shape": null
+            }
+          }
+        ],
+        "pseudo_code": "import json\nimport paho.mqtt.client as mqtt\nif 'client' not in state:\n    client = mqtt.Client()\n    client.connect('localhost', 1883, 60)\n    client.loop_start()\n    state['client'] = client\nobjects = [{'tracker_id': int(track['id']), 'class': track['class'], 'confidence': float(track['score']), 'bounding_box': [float(value) for value in track['box']]} for track in current_tracks]\npayload = {'frame_index': source_metadata['frame_index'], 'timestamp_s': source_metadata['timestamp_s'], 'objects': objects}\nstate['client'].publish('argonyx/detections', json.dumps(payload), qos=0)",
+        "resolution": null,
+        "type": "output",
+        "url": "mqtt://localhost:1883"
+      },
+      {
+        "description": "Annotate privacy-protected frames and publish an RTSP stream.",
+        "grid": null,
+        "id": 9,
+        "name": "rtsp",
+        "output_type": "single",
+        "ports": [
+          {
+            "direction": "input",
+            "format": {
+              "color": "BGR",
+              "encoding": "raw"
+            },
+            "framerate": {
+              "denominator": 1,
+              "numerator": 10
+            },
+            "id": "p09if",
+            "tensor": {
+              "dtype": "uint8",
+              "shape": [
+                576,
+                768,
+                3
+              ]
+            }
+          },
+          {
+            "direction": "input",
+            "format": {
+              "color": null,
+              "encoding": null
+            },
+            "framerate": {
+              "denominator": 1,
+              "numerator": 10
+            },
+            "id": "p09it",
+            "tensor": {
+              "dtype": null,
+              "shape": null
+            }
+          }
+        ],
+        "pseudo_code": "import cv2\n# The image input is exclusively the post-tracker privacy chain's output.\nannotated = redacted_bgr.copy()\nheight, width = annotated.shape[:2]\nfor track in current_tracks:\n    x1, y1, x2, y2 = [int(round(value)) for value in track['box']]\n    x1, x2 = max(0, min(width - 1, x1)), max(0, min(width - 1, x2))\n    y1, y2 = max(0, min(height - 1, y1)), max(0, min(height - 1, y2))\n    cv2.rectangle(annotated, (x1, y1), (x2, y2), (0, 200, 0), 2)\n    label = f\"{track['class']} ID{track['id']} {track['score']:.2f}\"\n    cv2.putText(annotated, label, (x1, min(height - 1, max(16, y1 - 6))), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 200, 0), 2, cv2.LINE_AA)\nif 'writer' not in state:\n    pipeline = ('appsrc ! videoconvert ! x264enc tune=zerolatency speed-preset=ultrafast '\n                '! h264parse ! rtspclientsink location=rtsp://localhost:8554/argonyx')\n    writer = cv2.VideoWriter(pipeline, cv2.CAP_GSTREAMER, 0, 10.0, (width, height), True)\n    if not writer.isOpened():\n        raise RuntimeError('Could not publish to rtsp://localhost:8554/argonyx')\n    state['writer'] = writer\nstate['writer'].write(annotated)",
+        "resolution": [
+          768,
+          576
+        ],
+        "type": "output",
+        "url": "rtsp://localhost:8554/argonyx"
+      }
+    ]
+  }
+}

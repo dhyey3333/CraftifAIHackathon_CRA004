@@ -73,6 +73,37 @@ USE_HALF_PRECISION = DEVICE.startswith("cuda")
 DETECTOR_CONF_THRESHOLD = 0.35
 TRACKER_CONFIG = "bytetrack.yaml"
 
+# --- Detector backend ---------------------------------------------------------
+# "yolo": ultralytics YOLO + ByteTrack in this process (the original setup).
+# "pipegen": detection and tracking run in the CraftifAI PipeGen pipeline
+# (TensorRT engine inside DeepStream); its per-frame objects arrive over MQTT
+# and backend/detection/pipegen_detector.py feeds them to the same rules,
+# alerts and dashboard. No YOLO or weapon model is loaded for detection then.
+DETECTOR_BACKEND = os.environ.get("ARGONYX_DETECTOR", "yolo").strip().lower()
+PIPEGEN_MQTT_HOST = os.environ.get("ARGONYX_PIPEGEN_HOST", "127.0.0.1")
+PIPEGEN_MQTT_PORT = int(os.environ.get("ARGONYX_PIPEGEN_PORT", "1883"))
+PIPEGEN_MQTT_TOPIC = os.environ.get("ARGONYX_PIPEGEN_TOPIC", "argonyx/detections")
+# Pixel size the pipeline's boxes are in (DeepStream's streammux resolution),
+# for messages that don't state it. Boxes are rescaled to the analysed frame.
+PIPEGEN_FRAME_SIZE = tuple(
+    int(v) for v in os.environ.get("ARGONYX_PIPEGEN_FRAME_SIZE", "1920x1080").lower().split("x")
+)
+PIPEGEN_MAX_AGE_S = 1.0   # no message for this long = pipeline stopped: report no objects, not stale ones
+# DeepStream model labels (lower-cased) -> the COCO names the rules reason about.
+PIPEGEN_CLASS_MAP = {"people": "person", "pedestrian": "person", "bag": "backpack"}
+
+# --- Privacy (rules carried over from PrivAgent) ------------------------------
+# Every frame the dashboard streams or stores as alert evidence has heads covered
+# by a solid box first. Solid, not blurred: blur and pixelation can be reversed.
+# In pipegen mode the PipeGen pipeline itself covers heads (solid box + blur) on
+# the exact frames it streams, before the video ever reaches Argonyx; a second
+# mask here, drawn from MQTT boxes that arrive ahead of the RTSP video, would
+# trail behind moving heads. So it is off there unless forced with "1".
+PRIVACY_MASK_HEADS = os.environ.get(
+    "ARGONYX_PRIVACY_MASK", "0" if DETECTOR_BACKEND == "pipegen" else "1"
+) != "0"
+PRIVACY_HEAD_FRACTION = 0.22   # top share of an upright person's box that holds the head
+
 # COCO class names this system reasons about explicitly.
 PERSON_CLASS = "person"
 ITEM_CLASSES = {"backpack", "handbag", "suitcase"}

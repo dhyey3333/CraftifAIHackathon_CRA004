@@ -169,6 +169,15 @@ class CameraWeaponDetector:
         return self.shared.weapons(frame)
 
 
+class NoWeaponDetector:
+    """ARGONYX_DETECTOR=pipegen: weapons are out of scope there. None means
+    "not evaluated", so the pipeline leaves the 5-of-8 filter untouched."""
+    enabled = False
+
+    def infer(self, frame):
+        return None
+
+
 # ---------------------------------------------------------------------------
 # Sources
 # ---------------------------------------------------------------------------
@@ -419,8 +428,16 @@ class Camera:
         if self._running:
             return
         # Fresh tracker/weapon state every start: a new source is a new scene.
-        self.pipeline.object_detector = CameraObjectDetector(self.shared, config.CAMERA_MAX_FPS)
-        self.pipeline.weapon_detector = CameraWeaponDetector(self.shared, config.WEAPON_EVERY_N_FRAMES)
+        if config.DETECTOR_BACKEND == "pipegen":
+            # Detection + tracking run in the PipeGen pipeline (TensorRT on the
+            # GPU); this process only reads its MQTT feed.
+            from backend.detection.pipegen_detector import PipeGenDetector
+
+            self.pipeline.object_detector = PipeGenDetector()
+            self.pipeline.weapon_detector = NoWeaponDetector()
+        else:
+            self.pipeline.object_detector = CameraObjectDetector(self.shared, config.CAMERA_MAX_FPS)
+            self.pipeline.weapon_detector = CameraWeaponDetector(self.shared, config.WEAPON_EVERY_N_FRAMES)
         self.pipeline.pose_fn = self.shared.pose_people
         self._running = True
         self.status = STATUS_CONNECTING
@@ -436,6 +453,9 @@ class Camera:
         for t in self._threads:
             t.join(timeout=3.0)
         self._threads = []
+        close = getattr(self.pipeline.object_detector, "close", None)   # PipeGen: drop the MQTT connection
+        if close is not None:
+            close()
         self.status = STATUS_STOPPED
         self.offline_since = None
         with self._lock:
@@ -563,11 +583,17 @@ class Camera:
             seen_seq = seq
             t0 = time.time()
             small = resize_to_width(frame, config.PROCESS_WIDTH)
+            if hasattr(self.pipeline.object_detector, "source_size"):
+                # PipeGen: its boxes are in the pixels of the stream we read (its
+                # own RTSP output), i.e. this frame before the resize.
+                self.pipeline.object_detector.source_size = (frame.shape[1], frame.shape[0])
             try:
                 annotated = self.pipeline.process(small)
             except Exception as exc:  # keep the camera alive if one frame errors
                 print(f"[{self.id}] frame error: {exc}")
-                annotated = small
+                # With privacy on, a failed frame was never masked: stream a
+                # blank one rather than the raw picture.
+                annotated = np.zeros_like(small) if config.PRIVACY_MASK_HEADS else small
             if self.on_frame:
                 try:
                     self.on_frame(self, small, annotated)

@@ -1,0 +1,282 @@
+{
+  "version": 1,
+  "steps": {
+    "visualize": {
+      "step": "visualize",
+      "status": "ok",
+      "summary": "323 graph nodes \u00b7 0 unresolved TensorRT node(s)",
+      "detail": "",
+      "data": {
+        "_data_file": "/home/dhyey/.pipegen/dhyeyghoda03/2693c909-8170-4845-b5fa-4b865af2c007/model_stage/visualize.data.json"
+      },
+      "warnings": [],
+      "artifacts": {},
+      "recorded_at": 1792253304.896877
+    },
+    "compile": {
+      "step": "compile",
+      "status": "warning",
+      "summary": "FP16 engine built in 24.5s \u2014 242 TRT layers, 28.6 MB.",
+      "detail": "**yolo11s.onnx \u2192 yolo11s.fp16.plan**  \u00b7  TensorRT 10.3.0\n\nThe engine is on disk and this is the file that gets deployed. Nothing has been run yet, so none of this is a speed measurement \u2014 the build time above is how long it took to CREATE, not how fast it goes.\n\n**Asked for FP16, but the engine is mixed:** FP16 216 \u00b7 FP32 25 \u00b7 UNKNOWN 1.\n\nTensorRT falls back when a layer has no kernel at the precision you asked for. This is the usual reason a speed-up comes in smaller than expected \u2014 the layers that fell back are still running at the slower format.\n\n**Layout conversion \u2014 27% of layers**\n\n66 of 242 layers do no maths. They only rearrange data so the next layer can read it.\n\nAround 8% is normal at FP32. What this number is really for is comparing two builds of the SAME model: a jump after a precision change is the cost of extra shuffling, not a worse choice of kernel. At 27% a large share of this engine is moving data rather than computing \u2014 worth comparing against another precision before concluding the model is simply expensive.\n\n**What the engine is made of**\n\n| Kind | Count | What it does |\n|---|---:|---|\n| CaskConvolution | 85 | convolutions |\n| Reformat | 66 | layout/precision conversion \u2014 overhead, not maths |\n| NoOp | 46 | removed entirely |\n| PointWiseV2 | 23 | elementwise maths, fused |\n| Shuffle | 6 | reshapes and transposes |\n| kgen | 4 | \u2014 |\n| Constant | 3 | \u2014 |\n| CaskPooling | 3 | \u2014 |\n| gemm | 2 | \u2014 |\n| Resize | 2 | resizing |\n| shape_call | 1 | \u2014 |\n| CaskSoftMaxV2 | 1 | \u2014 |\n\nThese are TensorRT's own kernel families, after it merged what it could \u2014 which is why the count does not match the ONNX node count.",
+      "data": {
+        "_data_file": "/home/dhyey/.pipegen/dhyeyghoda03/2693c909-8170-4845-b5fa-4b865af2c007/model_stage/compile.data.json"
+      },
+      "warnings": [
+        "First build on this GPU, so every kernel had to be timed (24s). The timings are now cached; rebuilding this model after surgery or quantization will be far quicker."
+      ],
+      "artifacts": {
+        "engine": "/home/dhyey/.pipegen/dhyeyghoda03/2693c909-8170-4845-b5fa-4b865af2c007/model_stage/yolo11s.fp16.plan"
+      },
+      "recorded_at": 1792253355.3028908
+    },
+    "engine": {
+      "step": "engine",
+      "status": "ok",
+      "summary": "FP16 engine: 6.373 ms/frame \u00b7 ~157 fps \u00b7 48.40 W",
+      "detail": "**yolo11s.fp16.plan** (TensorRT 10.3.0, FP16)\n\n| Measurement | Value | Source |\n|---|---:|---|\n| Frame time (end to end) | 6.373 ms | trtexec |\n| GPU compute only | 5.634 ms | trtexec |\n| Host\u2194device transfer | 0.740 ms | derived |\n| Summed layer time | 6.777 ms | /home/dhyey/.pipegen/dhyeyghoda03/2693c909-8170-4845-b5fa-4b865af2c007/model_stage/yolo11s.fp16.runtime.profile.json |\n| Profiling overhead | 1.20\u00d7 | summed layers \u00f7 GPU compute |\n| Throughput | ~157 fps | derived |\n| Power | 48.40 W | nvidia-smi |\n\n**Precision TensorRT actually chose**\n\n| Precision | Layers |\n|---|---:|\n| FP16 | 216 |\n| FP32 | 25 |\n| UNKNOWN | 1 |\n\n**Selected tactics**\n\n| Tactic | Count |\n|---|---:|\n| 0x00000000000003e8 | 66 |\n| 0x0000000000000000 | 55 |\n| 0x0000000000000009 | 22 |\n| 0xe29800439b9d3cf7 | 17 |\n| 0x5692ab284b03c90b | 8 |\n| 0xc9d24bd069159fa8 | 7 |\n| 0x004bc40835df5b89 | 6 |\n| 0xded5318b4a444b84 | 5 |\n| 0x0286820bd291a1c7 | 4 |\n| 0x69a5b2ac9c5bac16 | 4 |\n| kgen | 4 |\n| 0xdbe57b4edf7481d8 | 3 |\n\nTactic/runtime/power values are separated by provenance; per-layer power is not claimed from whole-engine telemetry.\n\n---\n\n**yolo11s.onnx** on **Jetson Orin NX 16GB** (fp16, 15W)\n\n| Metric | Value |\n|---|---|\n| Latency / frame | 4.60 ms |\n| Throughput | ~218 fps |\n| Energy / frame | 49438.6 \u00b5J |\n| Operation power | 10.75 W |\n| Steady-state temperature rise | +16.13 \u00b0C |\n| Units profiled | 290 / 290 (100%) |\n\n**Time by family**\n\n| Family | ms | share |\n|---|---:|---:|\n| elementwise | 2.803 | 61% |\n| compute | 1.677 | 36% |\n| resize | 0.060 | 1% |\n| norm | 0.046 | 1% |\n| pool | 0.012 | 0% |\n\n**Hotspots**\n\n| Unit | Subgraph | Algorithm | ms | share | bound |\n|---|---|---|---:|---:|---|\n| `/model.0/act/Sigmoid` | pointwise | fused_pwn | 0.128 | 2.8% | memory-bound |\n| `/model.0/act/Mul` | pointwise | fused_pwn | 0.128 | 2.8% | memory-bound |\n| `/model.2/cv2/act/Sigmoid` | pointwise | fused_pwn | 0.128 | 2.8% | memory-bound |\n| `/model.2/cv2/act/Mul` | pointwise | fused_pwn | 0.128 | 2.8% | memory-bound |\n| `/model.2/cv2/conv/Conv` | pwconv_bias_act | implicit_gemm | 0.112 | 2.4% | memory-bound |\n| `/model.1/conv/Conv` | conv_bias_act | implicit_gemm | 0.096 | 2.1% | memory-bound |\n| `/model.0/conv/Conv` | conv_bias_act | implicit_gemm | 0.088 | 1.9% | memory-bound |\n| `/model.3/conv/Conv` | conv_bias_act | winograd | 0.083 | 1.8% | memory-bound |\n\n_Modelled (roofline over the Jetson Orin NX 16GB fact table), not measured. Use it to compare options; use the layer report for ground truth._",
+      "data": {
+        "_data_file": "/home/dhyey/.pipegen/dhyeyghoda03/2693c909-8170-4845-b5fa-4b865af2c007/model_stage/engine.data.json"
+      },
+      "warnings": [],
+      "artifacts": {
+        "engine": "/home/dhyey/.pipegen/dhyeyghoda03/2693c909-8170-4845-b5fa-4b865af2c007/model_stage/yolo11s.fp16.plan",
+        "tactics": "/home/dhyey/.pipegen/dhyeyghoda03/2693c909-8170-4845-b5fa-4b865af2c007/model_stage/engine_tactics.json"
+      },
+      "recorded_at": 1792255750.4225242
+    },
+    "accuracy": {
+      "step": "accuracy",
+      "status": "ok",
+      "summary": "mAP@0.5 0.4778 against COCO 2017 validation slice (30 samples) ground truth (-0.0004 vs the ONNX on the same data) \u00b7 30 sample(s)",
+      "detail": "**mAP@0.5 0.4778 against COCO 2017 validation slice (30 samples) ground truth (-0.0004 vs the ONNX on the same data) \u00b7 30 sample(s)**\n\n| | |\n|---|---|\n| Measured against | COCO 2017 validation slice (30 samples) ground truth |\n| Samples | 30 |\n| Engine | `yolo11s.fp16.plan` |\n| Reference | `yolo11s.onnx` (FP32 ONNX) |\n\n| Metric | Engine | ONNX | Change |\n|---|---:|---:|---:|\n| mAP@0.5 | 0.4778 | 0.4782 | -0.0004 \u26a0 |\n| mAP@0.5:0.95 | 0.3419 | 0.3421 | -0.0002 \u26a0 |\n| Precision@0.5 | 0.3635 | 0.3669 | -0.0034 \u26a0 |\n| Recall@0.5 | 0.6655 | 0.6655 | +0.0000 |\n| Predictions | 542 | 537 | +5.0000 \u2713 |\n| Ground-truth objects | 296 | 296 | +0.0000 |\n\n**What these mean**\n\n- **mAP@0.5** \u2014 Mean average precision at IoU 0.5 \u2014 the standard detection score. Charges for missed objects and for false positives, which a box-overlap average cannot.\n- **mAP@0.5:0.95** \u2014 Averaged over ten IoU thresholds from 0.5 to 0.95. Stricter: it moves when box coordinates drift, not only when detections are lost.\n- **Precision@0.5** \u2014 Of everything the model reported, how much was real.\n- **Recall@0.5** \u2014 Of everything that was there, how much it found.\n- **Predictions** \u2014 Total detections reported across the set.\n- **Ground-truth objects** \u2014 Total objects the labels contain.",
+      "data": {
+        "task": "detection",
+        "source": "dataset",
+        "dataset_name": "COCO 2017 validation slice (30 samples)",
+        "samples": 30,
+        "engine_path": "/home/dhyey/.pipegen/dhyeyghoda03/2693c909-8170-4845-b5fa-4b865af2c007/model_stage/yolo11s.fp16.plan",
+        "onnx_path": "/home/dhyey/.pipegen/dhyeyghoda03/2693c909-8170-4845-b5fa-4b865af2c007/src1/AbandonedObjectDetection/model/yolo11s.onnx",
+        "precision": "fp16",
+        "primary_key": "mAP50",
+        "metrics": [
+          {
+            "key": "mAP50",
+            "label": "mAP@0.5",
+            "value": 0.47776,
+            "higher_is_better": true,
+            "unit": "ratio",
+            "hint": "Mean average precision at IoU 0.5 \u2014 the standard detection score. Charges for missed objects and for false positives, which a box-overlap average cannot."
+          },
+          {
+            "key": "mAP",
+            "label": "mAP@0.5:0.95",
+            "value": 0.34191,
+            "higher_is_better": true,
+            "unit": "ratio",
+            "hint": "Averaged over ten IoU thresholds from 0.5 to 0.95. Stricter: it moves when box coordinates drift, not only when detections are lost."
+          },
+          {
+            "key": "precision",
+            "label": "Precision@0.5",
+            "value": 0.363469,
+            "higher_is_better": true,
+            "unit": "ratio",
+            "hint": "Of everything the model reported, how much was real."
+          },
+          {
+            "key": "recall",
+            "label": "Recall@0.5",
+            "value": 0.665541,
+            "higher_is_better": true,
+            "unit": "ratio",
+            "hint": "Of everything that was there, how much it found."
+          },
+          {
+            "key": "n_pred",
+            "label": "Predictions",
+            "value": 542.0,
+            "higher_is_better": true,
+            "unit": "raw",
+            "hint": "Total detections reported across the set."
+          },
+          {
+            "key": "n_gt",
+            "label": "Ground-truth objects",
+            "value": 296.0,
+            "higher_is_better": true,
+            "unit": "raw",
+            "hint": "Total objects the labels contain."
+          }
+        ],
+        "baseline": [
+          {
+            "key": "mAP50",
+            "label": "mAP@0.5",
+            "value": 0.478185,
+            "higher_is_better": true,
+            "unit": "ratio",
+            "hint": "Mean average precision at IoU 0.5 \u2014 the standard detection score. Charges for missed objects and for false positives, which a box-overlap average cannot."
+          },
+          {
+            "key": "mAP",
+            "label": "mAP@0.5:0.95",
+            "value": 0.342122,
+            "higher_is_better": true,
+            "unit": "ratio",
+            "hint": "Averaged over ten IoU thresholds from 0.5 to 0.95. Stricter: it moves when box coordinates drift, not only when detections are lost."
+          },
+          {
+            "key": "precision",
+            "label": "Precision@0.5",
+            "value": 0.366853,
+            "higher_is_better": true,
+            "unit": "ratio",
+            "hint": "Of everything the model reported, how much was real."
+          },
+          {
+            "key": "recall",
+            "label": "Recall@0.5",
+            "value": 0.665541,
+            "higher_is_better": true,
+            "unit": "ratio",
+            "hint": "Of everything that was there, how much it found."
+          },
+          {
+            "key": "n_pred",
+            "label": "Predictions",
+            "value": 537.0,
+            "higher_is_better": true,
+            "unit": "raw",
+            "hint": "Total detections reported across the set."
+          },
+          {
+            "key": "n_gt",
+            "label": "Ground-truth objects",
+            "value": 296.0,
+            "higher_is_better": true,
+            "unit": "raw",
+            "hint": "Total objects the labels contain."
+          }
+        ],
+        "warnings": [],
+        "error": "",
+        "headline": "mAP@0.5 0.4778 against COCO 2017 validation slice (30 samples) ground truth (-0.0004 vs the ONNX on the same data) \u00b7 30 sample(s)",
+        "primary_value": 0.47776
+      },
+      "warnings": [],
+      "artifacts": {},
+      "recorded_at": 1792256161.5695484
+    },
+    "quantize": {
+      "step": "quantize",
+      "status": "warning",
+      "summary": "INT8 candidate is ready; the baseline remains active.",
+      "detail": "**Calibration:** MinMax (30 samples)\n\n**Representative input:** file \u2014 vtest_h264.mp4\n\n**Precision mix:** 329 INT8 layer(s), 46 fallback layer(s)\n\n**Engine size:** 28.57 MB baseline \u2192 14.79 MB candidate\n\n**Candidate build time:** 18.32 s\n\n**Output drift proxy:** 2.941% relative MAE (baseline engine vs candidate engine) \u2014 Not verified against labels\n\nMeasured speedup: 0.78x.",
+      "data": {
+        "_data_file": "/home/dhyey/.pipegen/dhyeyghoda03/2693c909-8170-4845-b5fa-4b865af2c007/model_stage/quantize.data.json"
+      },
+      "warnings": [
+        "The source ONNX predates opset 13, so weights use symmetric per-tensor QDQ; per-channel Q/DQ axes are not valid in this opset.",
+        "No labels were available for these representative inputs; output drift is reported, but task accuracy is Not verified."
+      ],
+      "artifacts": {
+        "quantized_onnx": "/home/dhyey/.pipegen/dhyeyghoda03/2693c909-8170-4845-b5fa-4b865af2c007/model_stage/yolo11s.int8.minmax.qdq.onnx",
+        "candidate_engine": "/home/dhyey/.pipegen/dhyeyghoda03/2693c909-8170-4845-b5fa-4b865af2c007/model_stage/yolo11s.int8.minmax.plan"
+      },
+      "recorded_at": 1792263144.4623883
+    }
+  },
+  "constraint": {},
+  "choices": {
+    "selected_artifact": "baseline",
+    "optimization_decision": "kept",
+    "quantization_preparation": {
+      "context": {
+        "node_id": 3,
+        "model_path": "/home/dhyey/.pipegen/dhyeyghoda03/2693c909-8170-4845-b5fa-4b865af2c007/src1/AbandonedObjectDetection/model/yolo11s.onnx",
+        "input": {
+          "dtype": "fp32",
+          "name": "images",
+          "shape": [
+            1,
+            3,
+            640,
+            640
+          ],
+          "layout": "NCHW"
+        },
+        "preprocess": {
+          "resize": [
+            640,
+            640
+          ],
+          "target_size": [
+            640,
+            640
+          ],
+          "resize_mode": "letterbox",
+          "pad_value": 114,
+          "color_order": "RGB",
+          "scale": 0.00392156862745098,
+          "normalization": 0.00392156862745098,
+          "offset": null,
+          "mean": null,
+          "std": null
+        },
+        "source": {
+          "node_id": 1,
+          "kind": "file",
+          "spec": "/home/dhyey/videos/vtest_h264.mp4"
+        },
+        "task": "detection"
+      },
+      "sample_paths": [
+        "/home/dhyey/.pipegen/accuracy_frames/int8-vtest_h264.mp4-4233f38c/frame_000.jpg",
+        "/home/dhyey/.pipegen/accuracy_frames/int8-vtest_h264.mp4-4233f38c/frame_001.jpg",
+        "/home/dhyey/.pipegen/accuracy_frames/int8-vtest_h264.mp4-4233f38c/frame_002.jpg",
+        "/home/dhyey/.pipegen/accuracy_frames/int8-vtest_h264.mp4-4233f38c/frame_003.jpg",
+        "/home/dhyey/.pipegen/accuracy_frames/int8-vtest_h264.mp4-4233f38c/frame_004.jpg",
+        "/home/dhyey/.pipegen/accuracy_frames/int8-vtest_h264.mp4-4233f38c/frame_005.jpg",
+        "/home/dhyey/.pipegen/accuracy_frames/int8-vtest_h264.mp4-4233f38c/frame_006.jpg",
+        "/home/dhyey/.pipegen/accuracy_frames/int8-vtest_h264.mp4-4233f38c/frame_007.jpg",
+        "/home/dhyey/.pipegen/accuracy_frames/int8-vtest_h264.mp4-4233f38c/frame_008.jpg",
+        "/home/dhyey/.pipegen/accuracy_frames/int8-vtest_h264.mp4-4233f38c/frame_009.jpg",
+        "/home/dhyey/.pipegen/accuracy_frames/int8-vtest_h264.mp4-4233f38c/frame_010.jpg",
+        "/home/dhyey/.pipegen/accuracy_frames/int8-vtest_h264.mp4-4233f38c/frame_011.jpg",
+        "/home/dhyey/.pipegen/accuracy_frames/int8-vtest_h264.mp4-4233f38c/frame_012.jpg",
+        "/home/dhyey/.pipegen/accuracy_frames/int8-vtest_h264.mp4-4233f38c/frame_013.jpg",
+        "/home/dhyey/.pipegen/accuracy_frames/int8-vtest_h264.mp4-4233f38c/frame_014.jpg",
+        "/home/dhyey/.pipegen/accuracy_frames/int8-vtest_h264.mp4-4233f38c/frame_015.jpg",
+        "/home/dhyey/.pipegen/accuracy_frames/int8-vtest_h264.mp4-4233f38c/frame_016.jpg",
+        "/home/dhyey/.pipegen/accuracy_frames/int8-vtest_h264.mp4-4233f38c/frame_017.jpg",
+        "/home/dhyey/.pipegen/accuracy_frames/int8-vtest_h264.mp4-4233f38c/frame_018.jpg",
+        "/home/dhyey/.pipegen/accuracy_frames/int8-vtest_h264.mp4-4233f38c/frame_019.jpg",
+        "/home/dhyey/.pipegen/accuracy_frames/int8-vtest_h264.mp4-4233f38c/frame_020.jpg",
+        "/home/dhyey/.pipegen/accuracy_frames/int8-vtest_h264.mp4-4233f38c/frame_021.jpg",
+        "/home/dhyey/.pipegen/accuracy_frames/int8-vtest_h264.mp4-4233f38c/frame_022.jpg",
+        "/home/dhyey/.pipegen/accuracy_frames/int8-vtest_h264.mp4-4233f38c/frame_023.jpg",
+        "/home/dhyey/.pipegen/accuracy_frames/int8-vtest_h264.mp4-4233f38c/frame_024.jpg",
+        "/home/dhyey/.pipegen/accuracy_frames/int8-vtest_h264.mp4-4233f38c/frame_025.jpg",
+        "/home/dhyey/.pipegen/accuracy_frames/int8-vtest_h264.mp4-4233f38c/frame_026.jpg",
+        "/home/dhyey/.pipegen/accuracy_frames/int8-vtest_h264.mp4-4233f38c/frame_027.jpg",
+        "/home/dhyey/.pipegen/accuracy_frames/int8-vtest_h264.mp4-4233f38c/frame_028.jpg",
+        "/home/dhyey/.pipegen/accuracy_frames/int8-vtest_h264.mp4-4233f38c/frame_029.jpg"
+      ],
+      "sample_count": 30,
+      "recommendation": {
+        "method": "minmax",
+        "reason": "its memory does not grow with the sample count",
+        "evidence": {
+          "conv_ops": 88,
+          "matrix_ops": 2,
+          "source_kind": "file",
+          "task": "detection",
+          "sample_count": 30
+        }
+      },
+      "representative_dir": "",
+      "samples_requested": 30
+    },
+    "task": "detection"
+  }
+}

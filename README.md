@@ -1,5 +1,9 @@
 # Argonyx - Intelligent Threat Detection & Situational Awareness
 
+> **PipeGen / HackwithBangalore submission:** detection and tracking can run in a
+> CraftifAI PipeGen pipeline (TensorRT on the GPU) instead of in-process YOLO.
+> See [PIPEGEN.md](PIPEGEN.md).
+
 Analyzes a live or uploaded video feed to detect anomalous behavior, flag
 potential security threats, prioritize alerts by severity, and give an
 analyst a single dashboard to act on it.
