@@ -40,7 +40,7 @@ Argonyx (backend/detection/pipegen_detector.py)
 |---|---|
 | Requirement | People and bag detection with tracking for a security camera; per-frame JSON over MQTT; RTSP video; heads covered before any video is displayed, saved or streamed |
 | Scene | Fixed camera, small/far targets (no frame skipping), privacy: faces |
-| Pipeline IR | input → detection → tracking → head redaction → MQTT + RTSP (see `docs/evidence/`) |
+| Pipeline IR | input → preprocess (letterbox) → inference (YOLO11s) → postprocess → tracking → solid-box head redaction → head blur → RTSP, with MQTT off the tracker (`docs/evidence/10_pipeline_ir_graph.png`) |
 | Model | Catalog: AbandonedObjectDetection (YOLO11s, COCO, 640×640) |
 | Compiler | TensorRT **FP16**: 242 layers, 28.6 MB, built in 24.5 s; INT8 (MinMax) candidate also built: 14.8 MB |
 | Run | `vtest_h264.mp4` (768×576, 10 fps); the generated app is `pipegen/deepstream/run.sh` (nvurisrcbin → nvinfer TensorRT → nvtracker → privacy redaction → MQTT → nvdsosd → H.264 → RTSP) |
@@ -79,7 +79,7 @@ confirms an object):
 
 | What | Result | Source |
 |---|---|---|
-| Engine latency, FP16 | **6.37 ms per frame** (mean), RTX 3050 6 GB laptop | PipeGen benchmark |
+| Engine latency, FP16 | **6.373 ms per frame** (mean), about **157 fps**, at **48.4 W**; 1×3×640×640 input, RTX 3050 6 GB laptop | PipeGen TensorRT report (`docs/evidence/11_tensorrt_speed_report.png`) |
 | Accuracy after compiling, FP16 | mAP@0.5 **0.4778** vs ONNX 0.4782 (**−0.0004**) on a 30-image COCO 2017 val slice | PipeGen accuracy check |
 | Engine size | FP16 28.6 MB · INT8 14.8 MB | PipeGen compiler |
 | INT8 speed / accuracy | built, not measured before the deadline | PipeGen |
@@ -144,9 +144,10 @@ address up each time, because it changes when WSL restarts.
 
 ## Evidence
 
-- `docs/evidence/`: PipeGen flow graph, catalog match, requirement checks,
-  TensorRT FP16 build card, accuracy check, INT8 calibration, and an Argonyx
-  alert evidence frame (`07_alert_evidence_intrusion.jpg`: PipeGen's boxes and
+- `docs/evidence/`: **Pipeline IR node graph** (`10_…`), **TensorRT speed
+  report** (`11_…`), PipeGen flow draft, catalog match, requirement checks,
+  TensorRT FP16 build card, accuracy check, INT8 calibration, the live
+  dashboard and alert feed, and an Argonyx alert evidence frame (`07_alert_evidence_intrusion.jpg`: PipeGen's boxes and
   tracker IDs, heads covered by PipeGen, Argonyx's zones on top)
 - `pipegen/`: the PipeGen export: `PipelineIR.json`, the generated DeepStream
   app (`deepstream/run.sh`, configs, parsers incl. `mqtt_publish.cpp` and
