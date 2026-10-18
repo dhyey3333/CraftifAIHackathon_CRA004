@@ -1,8 +1,27 @@
 # Argonyx - Intelligent Threat Detection & Situational Awareness
 
-> **PipeGen / HackwithBangalore submission:** detection and tracking can run in a
-> CraftifAI PipeGen pipeline (TensorRT on the GPU) instead of in-process YOLO.
-> See [PIPEGEN.md](PIPEGEN.md).
+## PipeGen submission: privacy-first CCTV threat alerts
+
+Detection and tracking run in a CraftifAI PipeGen pipeline: YOLO11s as a
+TensorRT FP16 engine (6.373 ms/frame, ~157 fps, 48.4 W on an RTX 3050 laptop)
+plus DeepStream's tracker, with every head redacted inside the pipeline. This
+app reads PipeGen's MQTT detections and raises ranked alerts: restricted-zone
+intrusion, loitering, crowd threshold and surge, unattended bags, falls.
+Pipeline, measurements and how to run it: **[PIPEGEN.md](PIPEGEN.md)**. PipeGen's
+export (generated DeepStream app, `run.sh`, Pipeline IR): [`pipegen/`](pipegen/).
+
+| Running live on PipeGen's feed | Alerts raised from PipeGen's detections |
+|---|---|
+| ![Dashboard camera on PipeGen's stream](docs/evidence/08_dashboard_live_pipegen_camera.jpg) | ![Alert feed](docs/evidence/09_dashboard_alert_feed.jpg) |
+| **Pipeline IR node graph** | **TensorRT speed report** |
+| ![Pipeline IR node graph](docs/evidence/10_pipeline_ir_graph.png) | ![TensorRT speed report](docs/evidence/11_tensorrt_speed_report.png) |
+
+Run it: start the pipeline from PipeGen (or `bash pipegen/deepstream/run.sh` in
+PipeGen's container), then on Windows
+`powershell -ExecutionPolicy Bypass -File tools\run_pipegen.ps1` and open
+`http://127.0.0.1:8000/dashboard`. Full setup in [PIPEGEN.md](PIPEGEN.md#run-it).
+
+---
 
 Analyzes a live or uploaded video feed to detect anomalous behavior, flag
 potential security threats, prioritize alerts by severity, and give an
