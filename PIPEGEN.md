@@ -45,6 +45,26 @@ Argonyx (backend/detection/pipegen_detector.py)
 | Compiler | TensorRT **FP16**: 242 layers, 28.6 MB, built in 24.5 s; INT8 (MinMax) candidate also built: 14.8 MB |
 | Run | `vtest_h264.mp4` (768×576, 10 fps); the generated app is `pipegen/deepstream/run.sh` (nvurisrcbin → nvinfer TensorRT → nvtracker → privacy redaction → MQTT → nvdsosd → H.264 → RTSP) |
 
+## What Argonyx does with PipeGen's detections
+
+PipeGen answers "what is where, and which one is it" (boxes and tracker IDs
+for people, bags and vehicles). Argonyx turns that into threats an operator
+can act on:
+
+| Capability | How | In the PipeGen demo |
+|---|---|---|
+| Restricted-zone intrusion | tracked person enters a no-go polygon | **fired: 14 HIGH alerts, 12 people** |
+| Crowd threshold / crowd surge | zone head-count over a limit / rising fast vs its rolling average | **fired: 4 threshold, 1 HIGH surge** |
+| Loitering | a track stays still in a zone too long | **fired: 3** |
+| Unattended object | a bag stays put after its owner walks away | runs; the clip has no abandoned bag |
+| Wrong-direction movement | track heading vs the zone's allowed direction | runs once a zone has a direction set |
+| Person down (fall) | lying box + pose, after being upright (UR Fall: 10/15 falls, 0/10 daily activities, measured earlier with YOLO) | runs; the clip has no fall |
+| Fight, hands raised, crowd panic | pose + a learned CLIP fight classifier | runs; not in this clip. Pose-based checks see redacted heads, so hands-raised (wrists vs nose) is weaker here |
+| Severity ranking | weighted by type, bonus when alerts co-occur | every alert is scored (e.g. intrusion 75, crowd 80) |
+| Evidence + audit | each alert keeps its (redacted) frame; hash-chained audit log | yes |
+| Multi-camera, re-ID, search, map | up to 4 cameras, cross-camera re-identification, "Ask Vigil" search, camera map / GPS | available; demo uses one camera |
+| Weapons | separate YOLO model | **off in PipeGen mode** (too many false alerts on small models) |
+
 MQTT message, as PipeGen's compiled DeepStream publisher writes it (boxes in
 DeepStream's frame size, stated in the message; `"id": null` until the tracker
 confirms an object):
@@ -65,7 +85,7 @@ confirms an object):
 | INT8 speed / accuracy | built, not measured before the deadline | PipeGen |
 | Live run, `vtest_h264.mp4` | **795/795 frames, 6,431 objects, every frame published over MQTT at 10 msg/s** (real time for the 10 fps clip), 79.4 s | PipeGen Run output (`pipegen/deepstream/.run_output.txt`) |
 | Privacy at the source | up to **5 heads redacted per frame**, reported in each MQTT message (`fields.heads_redacted`) | PipeGen MQTT feed |
-| Argonyx on PipeGen's feed | camera at **9.6 fps** (source is 10 fps); **19–22 ms per frame** in Argonyx for rules, zones and rendering. No detection model runs in Argonyx | Argonyx `/api/cameras` |
+| Argonyx on PipeGen's feed | camera at **9.6 fps** (source is 10 fps); **19–22 ms per frame** in Argonyx. Argonyx's own YOLO detector and weapon model are not loaded; only its behaviour models (pose, OpenCLIP) run, on PipeGen's redacted frames | Argonyx `/api/cameras`, audit log |
 | Alerts from PipeGen's detections | **22 alerts in ~40 s** with two zones drawn: 14 HIGH restricted-zone intrusions (12 different people, by PipeGen tracker ID), 4 crowd threshold, 1 HIGH crowd surge, 3 loitering, each with an evidence frame | Argonyx `/api/alerts` |
 
 The accuracy slice is small (30 images), so the meaningful number is the change
